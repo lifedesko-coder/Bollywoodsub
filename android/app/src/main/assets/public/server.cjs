@@ -219,6 +219,15 @@ var DIALECT_DESCRIPTIONS = {
 };
 async function startServer() {
   const app = (0, import_express.default)();
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+    next();
+  });
   app.use(import_express.default.json({ limit: "50mb" }));
   app.use(import_express.default.urlencoded({ extended: true, limit: "50mb" }));
   app.use("/uploads", import_express.default.static(UPLOADS_DIR));

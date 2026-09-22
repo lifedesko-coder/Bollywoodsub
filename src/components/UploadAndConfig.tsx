@@ -14,7 +14,8 @@ import {
   Clock,
   Mic,
   Music,
-  X
+  X,
+  Play
 } from 'lucide-react';
 import { ArabicDialect, DialogueType, TranslationSettings } from '../types';
 import { safeFetchJson } from '../utils/apiFetch';
@@ -43,17 +44,19 @@ export const UploadAndConfig: React.FC<UploadAndConfigProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [pendingLocalFile, setPendingLocalFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (file: File) => {
     if (!file) return;
+    setPendingLocalFile(file);
 
     // Check file size (250MB limit)
     const MAX_SIZE_MB = 250;
     const fileSizeMb = file.size / (1024 * 1024);
     if (fileSizeMb > MAX_SIZE_MB) {
       setUploadError(
-        `حجم الملف كبير جداً (${fileSizeMb.toFixed(1)} ميغابايت). الحد الأقصى المسموح به هو ${MAX_SIZE_MB} ميغابايت. يمكنك استخراج مسار الصوت ورفعه بصيغة MP3 لتسريع المعالجة الفورية.`
+        `حجم الملف كبير جداً (${fileSizeMb.toFixed(1)} ميغابايت). الحد الأقصى المسموح به هو ${MAX_SIZE_MB} ميغابايت.`
       );
       return;
     }
@@ -83,9 +86,12 @@ export const UploadAndConfig: React.FC<UploadAndConfigProps> = ({
         : data.url;
 
       onFileUploaded(data.fileId, data.originalName, localPreviewUrl);
+      setPendingLocalFile(null);
     } catch (err: any) {
       console.warn('Upload failed gracefully:', err.message);
-      setUploadError(err.message || 'فشل رفع الملف إلى السيرفر. يرجى المحاولة مرة أخرى.');
+      setUploadError(
+        `تعذر الاتصال بالسيرفر السحابي. ملاحظة: حجم ملفك (${(file.size / (1024 * 1024)).toFixed(1)} ميغابايت) مناسب جداً وأقل من الحد الأقصى (250 ميغابايت). يمكنك تشغيله واستعراضه محلياً على هاتفك مباشرة.`
+      );
     } finally {
       setIsUploading(false);
     }
@@ -166,12 +172,27 @@ export const UploadAndConfig: React.FC<UploadAndConfigProps> = ({
         </div>
 
         {uploadError && (
-          <div className="mt-2.5 p-3 rounded-xl bg-red-950/50 border border-red-500/40 text-xs text-red-200 flex items-center justify-between gap-3 shadow-sm">
+          <div className="mt-2.5 p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-xs text-red-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
             <div className="flex items-center gap-2 text-right flex-1">
               <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
-              <span>{uploadError}</span>
+              <span className="leading-relaxed">{uploadError}</span>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+              {pendingLocalFile && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const localUrl = URL.createObjectURL(pendingLocalFile);
+                    onFileUploaded(`local-${Date.now()}`, pendingLocalFile.name, localUrl);
+                    setUploadError(null);
+                  }}
+                  className="px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-semibold transition-colors flex items-center gap-1"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  <span>استخدام الفيديو محلياً</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={(e) => {
@@ -180,7 +201,7 @@ export const UploadAndConfig: React.FC<UploadAndConfigProps> = ({
                 }}
                 className="px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-[11px] font-semibold transition-colors"
               >
-                إعادة الرفع
+                إعادة المحاولة
               </button>
               <button
                 type="button"

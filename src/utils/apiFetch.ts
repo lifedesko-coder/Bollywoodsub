@@ -55,7 +55,7 @@ export async function safeFetchJson<T = any>(
   } catch (netErr: any) {
     throw new Error(
       netErr.message?.includes('Failed to fetch')
-        ? 'تعذر الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت أو حجم الملف.'
+        ? 'تعذر الاتصال بسيرفر المعالجة السحابي. يرجى التحقق من اتصال الإنترنت أو استخدام الفيديو محلياً على الهاتف.'
         : `خطأ في الاتصال بالشبكة: ${netErr.message || netErr}`
     );
   }

@@ -35,7 +35,7 @@
 
 | الملف | الوظيفة |
 | :--- | :--- |
-| `.github/workflows/build-apk.yml` | خط أنابيب GitHub Actions الآلي (تثبيت Java 17 و Android SDK وبناء الـ APK) |
+| `.github/workflows/build-apk.yml` | خط أنابيب GitHub Actions الآلي (تثبيت Java 21 LTS و Android SDK وبناء الـ APK) |
 | `capacitor.config.json` | تكوين هوية التطبيق (`com.bollywoodsub.ai`) واسم التطبيق وإعدادات الأمان |
 | `android/` | مشروع أندرويد محلي أصلي بالكامل يحتوي على `build.gradle` و `AndroidManifest.xml` |
 | `src/utils/apiFetch.ts` | محول ذكي يتعرف تلقائياً على تشغيل التطبيق داخل الهاتف ويربطه بسيرفر المعالجة السحابي |

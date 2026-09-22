@@ -79,6 +79,11 @@ export default function App() {
       return;
     }
 
+    if (fileId.startsWith('local-')) {
+      setError('الفيديو محمل محلياً على هاتفك. يمكنك إضافة وتعديل أسطر الترجمة وتوقيتاتها يدوياً أو استيراد ملف SRT وتصديرها مباشرة.');
+      return;
+    }
+
     setIsProcessing(true);
     setError(null);
     setFallbackNotice(null);
