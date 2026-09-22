@@ -36,7 +36,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
 
       - name: 📱 Accept Android SDK Licenses
         run: |
@@ -44,7 +43,7 @@ jobs:
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: 📦 Install Node Dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: 🛠️ Build Web Application (Vite)
         run: npm run build
