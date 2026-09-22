@@ -1,0 +1,353 @@
+import React, { useState, useRef } from 'react';
+import {
+  UploadCloud,
+  FileVideo,
+  Languages,
+  Radio,
+  SlidersHorizontal,
+  CheckCircle2,
+  Sparkles,
+  Loader2,
+  FileAudio,
+  ShieldAlert,
+  Flame,
+  Clock,
+  Mic,
+  Music,
+  X
+} from 'lucide-react';
+import { ArabicDialect, DialogueType, TranslationSettings } from '../types';
+import { safeFetchJson } from '../utils/apiFetch';
+
+interface UploadAndConfigProps {
+  currentFileId: string | null;
+  currentFileName: string | null;
+  onFileUploaded: (fileId: string, fileName: string, videoUrl: string) => void;
+  settings: TranslationSettings;
+  onUpdateSettings: (newSettings: Partial<TranslationSettings>) => void;
+  onStartTranslation: () => void;
+  isProcessing: boolean;
+  processingStep: string | null;
+}
+
+export const UploadAndConfig: React.FC<UploadAndConfigProps> = ({
+  currentFileId,
+  currentFileName,
+  onFileUploaded,
+  settings,
+  onUpdateSettings,
+  onStartTranslation,
+  isProcessing,
+  processingStep,
+}) => {
+  const [isUploading, setIsUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+
+    // Check file size (250MB limit)
+    const MAX_SIZE_MB = 250;
+    const fileSizeMb = file.size / (1024 * 1024);
+    if (fileSizeMb > MAX_SIZE_MB) {
+      setUploadError(
+        `حجم الملف كبير جداً (${fileSizeMb.toFixed(1)} ميغابايت). الحد الأقصى المسموح به هو ${MAX_SIZE_MB} ميغابايت. يمكنك استخراج مسار الصوت ورفعه بصيغة MP3 لتسريع المعالجة الفورية.`
+      );
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    const formData = new FormData();
+    formData.append('mediaFile', file);
+
+    try {
+      const data = await safeFetchJson<{
+        success: boolean;
+        fileId: string;
+        originalName: string;
+        sizeMb: string;
+        url: string;
+        mimeType: string;
+      }>('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      // Use local blob preview for immediate smooth playback if it's a video file
+      const localPreviewUrl = file.type.startsWith('video/')
+        ? URL.createObjectURL(file)
+        : data.url;
+
+      onFileUploaded(data.fileId, data.originalName, localPreviewUrl);
+    } catch (err: any) {
+      console.warn('Upload failed gracefully:', err.message);
+      setUploadError(err.message || 'فشل رفع الملف إلى السيرفر. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 shadow-xl space-y-5">
+      {/* 1. Upload Section */}
+      <div>
+        <label className="block text-xs font-bold text-neutral-300 mb-2 flex items-center justify-between">
+          <span className="flex items-center gap-1.5">
+            <UploadCloud className="w-4 h-4 text-amber-400" />
+            <span>رفع فيديو أو مسار صوتي هندي:</span>
+          </span>
+          <span className="text-[11px] text-neutral-500 font-normal">MP4, MKV, WebM, MP3, WAV</span>
+        </label>
+
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${
+            dragOver
+              ? 'border-amber-500 bg-amber-500/10'
+              : currentFileId
+              ? 'border-emerald-500/50 bg-emerald-500/5'
+              : 'border-neutral-800 hover:border-neutral-700 bg-neutral-950/60'
+          }`}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/*,audio/*,.mkv,.mp4,.avi,.mov,.webm,.mp3,.wav,.m4a"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                handleFileUpload(e.target.files[0]);
+              }
+            }}
+          />
+
+          {isUploading ? (
+            <div className="flex flex-col items-center gap-2 text-neutral-300 py-3">
+              <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+              <p className="text-xs font-semibold">جاري رفع الملف إلى السيرفر ومعالجة الصوت...</p>
+            </div>
+          ) : currentFileId ? (
+            <div className="flex items-center justify-center gap-3 py-2 text-emerald-400">
+              <FileVideo className="w-6 h-6 shrink-0" />
+              <div className="text-right">
+                <p className="text-xs font-bold text-neutral-200 truncate max-w-xs">{currentFileName}</p>
+                <p className="text-[10px] text-emerald-400">الملف جاهز ومحمل بالكامل - انقر لتغييره</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-1.5 py-3 text-neutral-400">
+              <UploadCloud className="w-8 h-8 text-neutral-500 mb-1" />
+              <p className="text-xs font-semibold text-neutral-200">
+                اسحب وأفلت ملف الفيلم أو الحلقة هنا، أو <span className="text-amber-400 underline">اختر ملفاً</span>
+              </p>
+              <p className="text-[10px] text-neutral-500">
+                يدعم الأفلام الطويلة ومقاطع OTT ومسارات الراب والأغاني
+              </p>
+            </div>
+          )}
+        </div>
+
+        {uploadError && (
+          <div className="mt-2.5 p-3 rounded-xl bg-red-950/50 border border-red-500/40 text-xs text-red-200 flex items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-2 text-right flex-1">
+              <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
+              <span>{uploadError}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fileInputRef.current?.click();
+                }}
+                className="px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-[11px] font-semibold transition-colors"
+              >
+                إعادة الرفع
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setUploadError(null);
+                }}
+                className="p-1 rounded text-red-400 hover:text-red-200 hover:bg-red-500/20 transition-colors"
+                title="إغلاق التنبيه"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 2. Dialect Selection */}
+      <div>
+        <label className="block text-xs font-bold text-neutral-300 mb-2 flex items-center gap-1.5">
+          <Languages className="w-4 h-4 text-amber-400" />
+          <span>اللهجة العربية المستهدفة:</span>
+        </label>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+          {[
+            { id: 'msa', name: 'الفصحى الحديثة', desc: 'لغة سينمائية رصينة فصيحة' },
+            { id: 'egyptian', name: 'اللهجة المصرية', desc: 'سلسة، محبوبة، وأقرب للدراما' },
+            { id: 'levantine', name: 'اللهجة الشامية', desc: 'سورية ولبنانية معبرة' },
+            { id: 'gulf', name: 'اللهجة الخليجية', desc: 'أصيلة ومعاصرة' },
+            { id: 'iraqi', name: 'اللهجة العراقية', desc: 'عميقة وشاعرية' },
+          ].map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              onClick={() => onUpdateSettings({ dialect: d.id as ArabicDialect })}
+              className={`p-2.5 rounded-xl border text-right transition-all ${
+                settings.dialect === d.id
+                  ? 'bg-amber-500/15 border-amber-500 text-amber-300 font-bold shadow-sm'
+                  : 'bg-neutral-950/80 border-neutral-800 text-neutral-400 hover:border-neutral-700'
+              }`}
+            >
+              <div className="font-bold text-xs">{d.name}</div>
+              <div className="text-[10px] text-neutral-500 mt-0.5">{d.desc}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 3. Dialogue Specialization Mode */}
+      <div>
+        <label className="block text-xs font-bold text-neutral-300 mb-2 flex items-center gap-1.5">
+          <SlidersHorizontal className="w-4 h-4 text-amber-400" />
+          <span>نوع وسياق الكلام الهندي:</span>
+        </label>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          {[
+            {
+              id: 'all',
+              title: 'ترجمة شاملة (كل شيء)',
+              desc: 'حوارات، Hinglish، راب، وأغاني الخلفية',
+              icon: <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            },
+            {
+              id: 'hinglish',
+              title: 'تركيز على الـ Hinglish السريع',
+              desc: 'خلط الهندية بالإنجليزية مع ترجمة ذكية للمصطلحات',
+              icon: <Radio className="w-3.5 h-3.5 text-orange-400" />
+            },
+            {
+              id: 'rap_song',
+              title: 'راب بوليوود وأغاني الاستعراض',
+              desc: 'Gully Boy، راب سريع مع علامة النوتة الموسيقية ♪',
+              icon: <Mic className="w-3.5 h-3.5 text-red-400" />
+            },
+            {
+              id: 'background_song',
+              title: 'أغاني الخلفية الشعرية (OST)',
+              desc: 'الأغاني الرومانسية والشعر مع علامة النوتة ♪',
+              icon: <Music className="w-3.5 h-3.5 text-sky-400" />
+            },
+          ].map((mode) => (
+            <button
+              key={mode.id}
+              type="button"
+              onClick={() => onUpdateSettings({ dialogueType: mode.id as DialogueType })}
+              className={`p-2.5 rounded-xl border text-right flex items-start gap-2 transition-all ${
+                settings.dialogueType === mode.id
+                  ? 'bg-amber-500/15 border-amber-500 text-amber-300 font-bold'
+                  : 'bg-neutral-950/80 border-neutral-800 text-neutral-400 hover:border-neutral-700'
+              }`}
+            >
+              <div className="mt-0.5">{mode.icon}</div>
+              <div>
+                <div className="font-bold text-xs">{mode.title}</div>
+                <div className="text-[10px] text-neutral-500">{mode.desc}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 4. Model Selection & Base-60 Enforcer */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-neutral-950 border border-neutral-800 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="text-neutral-400">نموذج الذكاء الاصطناعي:</span>
+          <select
+            value={settings.model}
+            onChange={(e) => onUpdateSettings({ model: e.target.value as any })}
+            className="bg-neutral-900 border border-neutral-700 rounded-lg px-2.5 py-1 text-xs text-neutral-200 font-mono focus:outline-none cursor-pointer"
+          >
+            <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (الأكثر استقراراً وسرعة - موصى به)</option>
+            <option value="gemini-3.8-flash">gemini-3.8-flash (الأحدث)</option>
+            <option value="gemini-flash-latest">gemini-flash-latest (بديل قياسي)</option>
+          </select>
+        </div>
+
+        <div className="flex items-center gap-3 text-[11px] flex-wrap">
+          <div className="flex items-center gap-1.5 text-sky-400 font-medium" title="إحاطة أسطر الأغاني والرّاب تلقائياً بعلامة النوتة الموسيقية ♪">
+            <Music className="w-3.5 h-3.5" />
+            <span>نوتة غنائية (♪) للراب والأغاني</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-amber-400 font-medium" title="نظام تكرار المحاولة والتبديل التلقائي الاحتياطي عند ضغط الخوادم">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>حماية من ضغط الخوادم (Auto-Retry)</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>قاعدة Base-60 الحتمية</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Start Translation Button & Progress */}
+      <div>
+        <button
+          type="button"
+          onClick={onStartTranslation}
+          disabled={!currentFileId || isProcessing}
+          className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-450 hover:to-orange-450 text-neutral-950 font-extrabold text-sm sm:text-base flex items-center justify-center gap-2 shadow-xl shadow-amber-500/20 transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isProcessing ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>جاري التحليل والترجمة بدقة فائقة...</span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-5 h-5" />
+              <span>بدء الترجمة وتوليد التوقيت المتزامن (SRT/ASS)</span>
+            </>
+          )}
+        </button>
+
+        {isProcessing && processingStep && (
+          <div className="mt-3 p-3 rounded-xl bg-neutral-950 border border-amber-500/30 text-xs text-amber-300 space-y-1 animate-pulse">
+            <div className="flex items-center gap-2 font-bold">
+              <Clock className="w-3.5 h-3.5" />
+              <span>الخطوة الحالية: {processingStep}</span>
+            </div>
+            <p className="text-[10px] text-neutral-400">
+              يتم استخراج الصوت عبر FFmpeg (-avoid_negative_ts make_zero) وتطبيق خوارزمية (Minutes * 60) + Seconds لمنع أي تأخير زمني.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
