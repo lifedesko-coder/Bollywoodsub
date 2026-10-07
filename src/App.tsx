@@ -11,7 +11,7 @@ import { ApkBuildModal } from './components/ApkBuildModal';
 import { SubtitleCue, TranslationSettings, SubtitleStyle } from './types';
 import { secondsToTimecode } from './utils/subtitleUtils';
 import { safeFetchJson } from './utils/apiFetch';
-import { AlertCircle, CheckCircle2, ShieldCheck, Film, Sparkles, Clock, Music, RotateCcw, Info } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ShieldCheck, Film, Sparkles, Clock, Music, RotateCcw, Info, Globe, ArrowUpRight, Copy, Check } from 'lucide-react';
 
 export default function App() {
   const [fileId, setFileId] = useState<string | null>('demo-gully-boy-rap');
@@ -23,6 +23,7 @@ export default function App() {
   const [processingStep, setProcessingStep] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fallbackNotice, setFallbackNotice] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
   // Modals state
   const [isTimingModalOpen, setIsTimingModalOpen] = useState<boolean>(false);
@@ -34,7 +35,7 @@ export default function App() {
   const [settings, setSettings] = useState<TranslationSettings>({
     dialect: 'egyptian',
     dialogueType: 'all',
-    model: 'gemini-3.1-flash-lite',
+    model: 'gemini-3.5-flash-lite',
     preserveHinglishFlavour: true,
     translateBackgroundSongs: true,
     minDurationSec: 1.0,
@@ -80,7 +81,8 @@ export default function App() {
     }
 
     if (fileId.startsWith('local-')) {
-      setError('الفيديو محمل محلياً على هاتفك. يمكنك إضافة وتعديل أسطر الترجمة وتوقيتاتها يدوياً أو استيراد ملف SRT وتصديرها مباشرة.');
+      setError('⚠️ الفيديو معروض محلياً على الهاتف فقط. لترجمة الكلام الهندي بالذكاء الاصطناعي، يلزم فتح التطبيق عبر متصفح الهاتف (Chrome) للاتصال بالسيرفر السحابي، أو استيراد ملف ترجمة SRT جاهز.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -337,14 +339,93 @@ export default function App() {
                 </li>
               </ul>
             </div>
+
+            {/* زر الفتح في صفحة خارجية من داخل التطبيق (مع سهم) */}
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-neutral-900 to-amber-500/10 border-2 border-amber-500/40 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-right">
+              <div className="space-y-1.5 flex-1">
+                <div className="flex items-center justify-center md:justify-start gap-2 font-bold text-neutral-100 text-sm sm:text-base">
+                  <Globe className="w-5 h-5 text-amber-400 shrink-0" />
+                  <span>فتح التطبيق في صفحة خارجية (متصفح الهاتف / Chrome)</span>
+                </div>
+                <p className="text-xs text-neutral-400 leading-relaxed max-w-2xl">
+                  لرفع الفيديوهات وترجمتها بالذكاء الاصطناعي مباشرة دون قيود تطبيقات الهاتف المحلية، اضغط على زر السهم بالأسفل لفتح الرابط في متصفحك الخارجي.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5 shrink-0 flex-wrap justify-center">
+                <a
+                  href="https://ais-dev-bw6j7pmuiyh2semyrvfxzz-90618466889.europe-west2.run.app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => {
+                    try {
+                      if ((window as any).Capacitor?.Plugins?.Browser?.open) {
+                        e.preventDefault();
+                        (window as any).Capacitor.Plugins.Browser.open({ url: 'https://ais-dev-bw6j7pmuiyh2semyrvfxzz-90618466889.europe-west2.run.app' });
+                        return;
+                      }
+                      window.open('https://ais-dev-bw6j7pmuiyh2semyrvfxzz-90618466889.europe-west2.run.app', '_system');
+                    } catch (_) {}
+                  }}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-neutral-950 font-black text-xs sm:text-sm shadow-lg shadow-amber-500/25 transition-all transform active:scale-95 group"
+                >
+                  <span>فتح في صفحة خارجية</span>
+                  <ArrowUpRight className="w-5 h-5 stroke-[2.5] text-neutral-950 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </a>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText('https://ais-dev-bw6j7pmuiyh2semyrvfxzz-90618466889.europe-west2.run.app');
+                    setCopiedLink(true);
+                    setTimeout(() => setCopiedLink(false), 2500);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-neutral-700 text-xs font-semibold transition-colors"
+                  title="نسخ رابط الموقع"
+                >
+                  {copiedLink ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span className="text-emerald-400">تم النسخ!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      <span>نسخ الرابط</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-neutral-800 bg-neutral-950 py-4 mt-8">
-        <div className="max-w-7xl mx-auto px-4 text-center text-xs text-neutral-500">
-          BollywoodSub AI © 2026 — ترجمة احترافية للأفلام والمسلسلات الهندية إلى العربية بمزامنة حتمية وحرق للفيديو عبر Google Gemini & FFmpeg.
+      <footer className="border-t border-neutral-800 bg-neutral-950 py-6 mt-8">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right text-xs text-neutral-500">
+          <div>
+            BollywoodSub AI © 2026 — ترجمة احترافية للأفلام والمسلسلات الهندية إلى العربية بمزامنة حتمية وحرق للفيديو عبر Google Gemini & FFmpeg.
+          </div>
+          <a
+            href="https://ais-dev-bw6j7pmuiyh2semyrvfxzz-90618466889.europe-west2.run.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              try {
+                if ((window as any).Capacitor?.Plugins?.Browser?.open) {
+                  e.preventDefault();
+                  (window as any).Capacitor.Plugins.Browser.open({ url: 'https://ais-dev-bw6j7pmuiyh2semyrvfxzz-90618466889.europe-west2.run.app' });
+                  return;
+                }
+                window.open('https://ais-dev-bw6j7pmuiyh2semyrvfxzz-90618466889.europe-west2.run.app', '_system');
+              } catch (_) {}
+            }}
+            className="inline-flex items-center gap-1 text-amber-400/90 hover:text-amber-300 font-semibold transition-colors"
+          >
+            <span>فتح في المتصفح الخارجي</span>
+            <ArrowUpRight className="w-4 h-4" />
+          </a>
         </div>
       </footer>
 

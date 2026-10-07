@@ -1,5 +1,5 @@
 import React from 'react';
-import { Film, Sparkles, Terminal, ShieldCheck, Clock, Download, Smartphone } from 'lucide-react';
+import { Film, Sparkles, Terminal, ShieldCheck, Clock, Download, Smartphone, Globe, ArrowUpRight } from 'lucide-react';
 
 interface HeaderProps {
   onOpenPythonModal: () => void;
@@ -81,6 +81,29 @@ export const Header: React.FC<HeaderProps> = ({
             <span>مشروع Python المحلي</span>
             <span className="bg-sky-500/20 text-sky-300 text-[10px] px-1.5 py-0.2 rounded font-mono">CLI</span>
           </button>
+
+          {/* Open in External Browser Button with Arrow */}
+          <a
+            href="https://ais-dev-bw6j7pmuiyh2semyrvfxzz-90618466889.europe-west2.run.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              try {
+                if ((window as any).Capacitor?.Plugins?.Browser?.open) {
+                  e.preventDefault();
+                  (window as any).Capacitor.Plugins.Browser.open({ url: 'https://ais-dev-bw6j7pmuiyh2semyrvfxzz-90618466889.europe-west2.run.app' });
+                  return;
+                }
+                window.open('https://ais-dev-bw6j7pmuiyh2semyrvfxzz-90618466889.europe-west2.run.app', '_system');
+              } catch (_) {}
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-xs font-semibold text-amber-300 border border-amber-500/40 transition-all shadow-sm group"
+            title="فتح التطبيق في متصفح خارجي (Chrome)"
+          >
+            <Globe className="w-3.5 h-3.5 text-amber-400" />
+            <span>فتح بالمتصفح</span>
+            <ArrowUpRight className="w-3.5 h-3.5 text-amber-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+          </a>
         </div>
       </div>
     </header>

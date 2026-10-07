@@ -15,7 +15,9 @@ import {
   Mic,
   Music,
   X,
-  Play
+  Play,
+  Globe,
+  ArrowUpRight
 } from 'lucide-react';
 import { ArabicDialect, DialogueType, TranslationSettings } from '../types';
 import { safeFetchJson } from '../utils/apiFetch';
@@ -51,12 +53,12 @@ export const UploadAndConfig: React.FC<UploadAndConfigProps> = ({
     if (!file) return;
     setPendingLocalFile(file);
 
-    // Check file size (250MB limit)
-    const MAX_SIZE_MB = 250;
+    // Check file size (Cloud Run reverse-proxy limit is 32MB)
+    const MAX_DIRECT_UPLOAD_MB = 30;
     const fileSizeMb = file.size / (1024 * 1024);
-    if (fileSizeMb > MAX_SIZE_MB) {
+    if (fileSizeMb > MAX_DIRECT_UPLOAD_MB) {
       setUploadError(
-        `حجم الملف كبير جداً (${fileSizeMb.toFixed(1)} ميغابايت). الحد الأقصى المسموح به هو ${MAX_SIZE_MB} ميغابايت.`
+        `حجم ملف الفيديو (${fileSizeMb.toFixed(1)} ميغابايت) يتجاوز الحد المسموح للرفع المباشر عبر السحابة (30 ميغابايت). للترجمة الفورية: يُرجى استخراج مسار الصوت ورفعه بصيغة MP3 (عادة يكون 3-8 ميغابايت فقط) أو ضغط الفيديو، أو تشغيله واستعراضه محلياً على هاتفك.`
       );
       return;
     }
@@ -89,9 +91,8 @@ export const UploadAndConfig: React.FC<UploadAndConfigProps> = ({
       setPendingLocalFile(null);
     } catch (err: any) {
       console.warn('Upload failed gracefully:', err.message);
-      setUploadError(
-        `تعذر الاتصال بالسيرفر السحابي. ملاحظة: حجم ملفك (${(file.size / (1024 * 1024)).toFixed(1)} ميغابايت) مناسب جداً وأقل من الحد الأقصى (250 ميغابايت). يمكنك تشغيله واستعراضه محلياً على هاتفك مباشرة.`
-      );
+      const actualError = err.message || 'تعذر الاتصال بالسيرفر السحابي.';
+      setUploadError(actualError);
     } finally {
       setIsUploading(false);
     }
@@ -164,8 +165,8 @@ export const UploadAndConfig: React.FC<UploadAndConfigProps> = ({
               <p className="text-xs font-semibold text-neutral-200">
                 اسحب وأفلت ملف الفيلم أو الحلقة هنا، أو <span className="text-amber-400 underline">اختر ملفاً</span>
               </p>
-              <p className="text-[10px] text-neutral-500">
-                يدعم الأفلام الطويلة ومقاطع OTT ومسارات الراب والأغاني
+              <p className="text-[10px] text-neutral-400">
+                يدعم MP4، MKV ومسارات الصوت MP3 (يُنصح بمسار الصوت MP3 أو فيديو أقل من 30 ميغابايت لمعالجة فائقة السرعة)
               </p>
             </div>
           )}
@@ -177,7 +178,27 @@ export const UploadAndConfig: React.FC<UploadAndConfigProps> = ({
               <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
               <span className="leading-relaxed">{uploadError}</span>
             </div>
-            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center flex-wrap">
+              <a
+                href="https://ais-dev-bw6j7pmuiyh2semyrvfxzz-90618466889.europe-west2.run.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  try {
+                    if ((window as any).Capacitor?.Plugins?.Browser?.open) {
+                      e.preventDefault();
+                      (window as any).Capacitor.Plugins.Browser.open({ url: 'https://ais-dev-bw6j7pmuiyh2semyrvfxzz-90618466889.europe-west2.run.app' });
+                      return;
+                    }
+                    window.open('https://ais-dev-bw6j7pmuiyh2semyrvfxzz-90618466889.europe-west2.run.app', '_system');
+                  } catch (_) {}
+                }}
+                className="px-2.5 py-1 rounded bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[11px] font-semibold transition-colors flex items-center gap-1 group"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>فتح بالمتصفح</span>
+                <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              </a>
               {pendingLocalFile && (
                 <button
                   type="button"
@@ -314,9 +335,11 @@ export const UploadAndConfig: React.FC<UploadAndConfigProps> = ({
             onChange={(e) => onUpdateSettings({ model: e.target.value as any })}
             className="bg-neutral-900 border border-neutral-700 rounded-lg px-2.5 py-1 text-xs text-neutral-200 font-mono focus:outline-none cursor-pointer"
           >
-            <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (الأكثر استقراراً وسرعة - موصى به)</option>
-            <option value="gemini-3.8-flash">gemini-3.8-flash (الأحدث)</option>
-            <option value="gemini-flash-latest">gemini-flash-latest (بديل قياسي)</option>
+            <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (نشط ومستقر وسريع - موصى به)</option>
+            <option value="gemini-3.6-flash">gemini-3.6-flash (دقة عالية وسريع)</option>
+            <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite</option>
+            <option value="gemini-3.8-flash">gemini-3.8-flash</option>
+            <option value="gemini-flash-latest">gemini-flash-latest</option>
           </select>
         </div>
 

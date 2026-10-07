@@ -259,9 +259,12 @@ async function startServer() {
       audioPath: string;
     }
   ): Promise<GenerateResult> {
-    const primaryModel = requestedModel || 'gemini-3.1-flash-lite';
+    const primaryModel = requestedModel || 'gemini-3.5-flash-lite';
     const candidateModels = [
       primaryModel,
+      'gemini-3.5-flash-lite',
+      'gemini-3.6-flash',
+      'gemini-flash-lite-latest',
       'gemini-3.1-flash-lite',
       'gemini-3.8-flash',
       'gemini-flash-latest',
@@ -407,7 +410,7 @@ async function startServer() {
         fileId,
         dialect = 'msa',
         dialogueType = 'all',
-        model = 'gemini-3.8-flash',
+        model = 'gemini-3.5-flash-lite',
         preserveHinglishFlavour = true,
         translateBackgroundSongs = true,
         minDurationSec = 1.0,
@@ -552,7 +555,7 @@ async function startServer() {
       // Call resilient Gemini handler with retries and automatic fallback
       const { responseText, modelUsed, fallbackOccurred, fallbackNotice } = await generateSubtitlesWithFallback(
         client,
-        model || 'gemini-3.1-flash-lite',
+        model || 'gemini-3.5-flash-lite',
         {
           systemInstruction,
           promptText,
