@@ -2,6 +2,7 @@ import React from 'react';
 import { Film, Sparkles, Terminal, ShieldCheck, Clock, Download, Smartphone, Globe, ArrowUpRight } from 'lucide-react';
 
 interface HeaderProps {
+  onOpenStreamlitModal: () => void;
   onOpenPythonModal: () => void;
   onOpenTimingInfo: () => void;
   onOpenApkModal: () => void;
@@ -10,6 +11,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  onOpenStreamlitModal,
   onOpenPythonModal,
   onOpenTimingInfo,
   onOpenApkModal,
@@ -70,6 +72,17 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span>تجربة مشهد بوليوود فوري</span>
+          </button>
+
+          {/* Streamlit App Button */}
+          <button
+            onClick={onOpenStreamlitModal}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-xs font-bold text-amber-300 border border-amber-500/40 transition-all shadow-sm"
+            title="تطبيق Streamlit مع خانة مفتاح Google AI Studio Gemini API ودعم الفيديوهات الضخمة"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>تطبيق Streamlit</span>
+            <span className="bg-amber-500/30 text-amber-200 text-[10px] px-1.5 py-0.2 rounded font-mono font-bold">1GB+</span>
           </button>
 
           {/* Python Standalone Button */}

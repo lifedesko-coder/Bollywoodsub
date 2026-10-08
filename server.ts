@@ -738,6 +738,22 @@ async function startServer() {
     }
   });
 
+  // 7. Download Streamlit app file directly
+  app.get('/api/download-streamlit-file', (req, res) => {
+    try {
+      const filePath = path.join(process.cwd(), 'streamlit_app.py');
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).send('ملف streamlit_app.py غير موجود.');
+      }
+      res.setHeader('Content-Type', 'text/x-python');
+      res.setHeader('Content-Disposition', 'attachment; filename="streamlit_app.py"');
+      res.sendFile(filePath);
+    } catch (err: any) {
+      console.error('Streamlit file download error:', err);
+      res.status(500).send('فشل تحميل ملف streamlit_app.py');
+    }
+  });
+
   // Explicit JSON error handler for all /api endpoints to prevent HTML error leak
   app.use('/api', (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error('Unhandled API Error caught:', err);

@@ -1,51 +1,51 @@
-# BollywoodSub AI - مشروع الترجمة المحلي (Python)
+# BollywoodSub AI - مشروع الترجمة المستقل (Python & Streamlit)
 
-مشروع محلي متكامل لترجمة الأفلام والمسلسلات الهندية (Bollywood & OTT) إلى العربية بدقة فائقة مع حرق الترجمة ومنع خطأ الـ 100 ثانية نهائياً.
+مشروع متكامل لترجمة الأفلام والمسلسلات الهندية (Bollywood & OTT) إلى العربية بدقة فائقة مع واجهة Streamlit وخانة مخصصة لمفتاح الذكاء الاصطناعي، ومزامنة Base-60 حتمية لمنع أخطاء التوقيت.
 
-## 🚀 المميزات
-- استخراج الصوت بنقاء 44.1kHz ومزامنة صفرية مطلقة عبر FFmpeg (`-avoid_negative_ts make_zero -af aresample=async=1`).
-- ترجمة حوارات الهندية و Hinglish والراب السريع وأغاني الأفلام باستخدام Google Gemini API (`@google/genai`).
-- منع خطأ الـ 100 ثانية عبر معادلة برمجية حتمية: `المجموع بالثواني = (الدقائق × 60) + الثواني`.
-- دعم اللهجات: الفصحى الحديثة، المصرية، الشامية، الخليجية، العراقية.
-- توليد ملفات `SRT` قياسية وملفات `ASS` بتنسيقات عربية سينمائية بخط Cairo.
-- حرق الترجمة تلقائياً داخل الفيديو (Hardcode/Burn) بجودة عالية.
+---
 
-## 🛠️ متطلبات التشغيل
-1. تثبيت بايثون 3.10 أو أحدث.
-2. تثبيت FFmpeg وإضافته لمتغيرات النظام PATH:
-   - Ubuntu/Debian: `sudo apt install ffmpeg`
-   - Mac (Homebrew): `brew install ffmpeg`
-   - Windows: تحميل FFmpeg وإضافته إلى System PATH.
+## 🌟 الطرق المتاحة للتشغيل
 
-3. تثبيت المكتبات:
+### الطريقة الأولى: واجهة الويب التفاعلية عبر Streamlit (موصى بها)
+تطبيق ويب متكامل يتيح رفع الفيديوهات حتى 1GB+ مع خانة كلمة مرور لإدخال مفتاح Google AI Studio Gemini API الخاص بك:
+
 ```bash
+# 1. تثبيت المتطلبات
 pip install -r requirements.txt
+
+# 2. تشغيل تطبيق Streamlit
+streamlit run streamlit_app.py
 ```
+ثم افتح متصفحك على: `http://localhost:8501` وأدخل مفتاحك في القائمة الجانبية.
 
-4. تعيين مفتاح API لـ Google Gemini في ملف `.env` أو في سطر الأوامر:
+---
+
+### الطريقة الثانية: سطر الأوامر (CLI) للأفلام الضخمة ومعالجة الدُفعات
+سكربت `gemini_subtitler.py` لمعالجة أوتوماتيكية سريعة:
+
 ```bash
-export GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
-```
+# تعيين المفتاح في البيئة
+export GEMINI_API_KEY="AIzaSy..."
 
-## 🎬 كيفية الاستخدام
+# ترجمة وتوليد SRT و ASS
+python gemini_subtitler.py --video "movie.mp4" --dialect egyptian
 
-### 1. ترجمة فيديو هندي وتوليد ملفات SRT و ASS:
-```bash
-python gemini_subtitler.py --video "path/to/bollywood_movie.mp4" --dialect msa
-```
-
-### 2. ترجمة مع حرق الترجمة داخل الفيديو مباشرة:
-```bash
+# ترجمة وحرق الترجمة فورياً داخل الفيديو (Hardcode Subtitles)
 python gemini_subtitler.py --video "movie.mp4" --dialect egyptian --burn
 ```
 
-### 3. خيارات اللهجات المتاحة (`--dialect`):
-- `msa`: الفصحى الحديثة
-- `egyptian`: اللهجة المصرية
-- `levantine`: اللهجة الشامية
-- `gulf`: اللهجة الخليجية
-- `iraqi`: اللهجة العراقية
+---
 
-### 4. خيارات النماذج (`--model`):
-- `gemini-3.8-flash` (افتراضي وسريع ودقيق)
-- `gemini-3.5-flash`
+## 🛠️ متطلبات التشغيل
+1. بايثون 3.10 أو أحدث.
+2. تثبيت المكتبات:
+```bash
+pip install -r requirements.txt
+```
+3. (اختياري لكن مفضل للحرق واستخراج الصوت): FFmpeg.
+
+---
+
+## 🔑 الحصول على مفتاح Google AI Studio مجاناً
+- تفضل بزيارة: [https://aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+- أنشئ مفتاح API جديد وضعه في خانة المفتاح في تطبيق Streamlit.

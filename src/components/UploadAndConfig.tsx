@@ -17,10 +17,12 @@ import {
   X,
   Play,
   Globe,
-  ArrowUpRight
+  ArrowUpRight,
+  Zap
 } from 'lucide-react';
 import { ArabicDialect, DialogueType, TranslationSettings } from '../types';
 import { safeFetchJson } from '../utils/apiFetch';
+import { extractAudioFromVideoInBrowser, isAudioExtractionSupported } from '../utils/browserAudioExtractor';
 
 interface UploadAndConfigProps {
   currentFileId: string | null;
@@ -29,6 +31,7 @@ interface UploadAndConfigProps {
   settings: TranslationSettings;
   onUpdateSettings: (newSettings: Partial<TranslationSettings>) => void;
   onStartTranslation: () => void;
+  onOpenStreamlitModal?: () => void;
   isProcessing: boolean;
   processingStep: string | null;
 }
@@ -40,34 +43,65 @@ export const UploadAndConfig: React.FC<UploadAndConfigProps> = ({
   settings,
   onUpdateSettings,
   onStartTranslation,
+  onOpenStreamlitModal,
   isProcessing,
   processingStep,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadStatusMsg, setUploadStatusMsg] = useState<string | null>(null);
   const [pendingLocalFile, setPendingLocalFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (file: File) => {
     if (!file) return;
     setPendingLocalFile(file);
+    setUploadError(null);
 
-    // Check file size (Cloud Run reverse-proxy limit is 32MB)
-    const MAX_DIRECT_UPLOAD_MB = 30;
-    const fileSizeMb = file.size / (1024 * 1024);
-    if (fileSizeMb > MAX_DIRECT_UPLOAD_MB) {
+    const isVideo = file.type.startsWith('video/') || /\.(mp4|mkv|mov|avi|webm)$/i.test(file.name);
+    const rawFileSizeMb = file.size / (1024 * 1024);
+
+    // Provide immediate local preview for videos
+    const localPreviewUrl = isVideo ? URL.createObjectURL(file) : null;
+
+    let fileToUpload: File = file;
+
+    // Intelligent Client-Side Audio Extraction for Video Files
+    // Shrinks 50-200MB video to 1-3MB WAV, bypassing Cloud Run 32MB payload limit completely!
+    if (isVideo && isAudioExtractionSupported() && rawFileSizeMb > 15) {
+      try {
+        setIsUploading(true);
+        setUploadStatusMsg('جاري استخراج مسار الصوت خفيف الحجم داخل المتصفح لتسريع الرفع وتفادي حدود الحجم...');
+        const extractedAudio = await extractAudioFromVideoInBrowser(file, (msg) => {
+          setUploadStatusMsg(msg);
+        });
+        fileToUpload = extractedAudio;
+      } catch (extractErr: any) {
+        console.warn('Browser audio extraction skipped or failed, uploading original:', extractErr);
+        fileToUpload = file;
+      }
+    }
+
+    const uploadSizeMb = fileToUpload.size / (1024 * 1024);
+    if (uploadSizeMb > 30) {
+      setIsUploading(false);
+      setUploadStatusMsg(null);
       setUploadError(
-        `حجم ملف الفيديو (${fileSizeMb.toFixed(1)} ميغابايت) يتجاوز الحد المسموح للرفع المباشر عبر السحابة (30 ميغابايت). للترجمة الفورية: يُرجى استخراج مسار الصوت ورفعه بصيغة MP3 (عادة يكون 3-8 ميغابايت فقط) أو ضغط الفيديو، أو تشغيله واستعراضه محلياً على هاتفك.`
+        `حجم الملف (${uploadSizeMb.toFixed(1)} ميغابايت) يتجاوز الحد المسموح للرفع المباشر عبر السحابة (30 ميغابايت). ` +
+        'للأفلام والملفات الكبيرة: نوصي بفتح تطبيق Streamlit المخصص المزود بخانة مفتاح Google AI Studio الذي يدعم حتى 1GB+ دون أي حدود، أو استخراج مسار الصوت بصيغة MP3.'
       );
+      if (localPreviewUrl) {
+        onFileUploaded(`local-${Date.now()}`, file.name, localPreviewUrl);
+      }
       return;
     }
 
     setIsUploading(true);
-    setUploadError(null);
+    setUploadStatusMsg(`جاري رفع الملف إلى السيرفر السحابي (${uploadSizeMb.toFixed(1)} ميغابايت)...`);
 
     const formData = new FormData();
-    formData.append('mediaFile', file);
+    formData.append('mediaFile', fileToUpload);
 
     try {
       const data = await safeFetchJson<{
@@ -82,19 +116,21 @@ export const UploadAndConfig: React.FC<UploadAndConfigProps> = ({
         body: formData,
       });
 
-      // Use local blob preview for immediate smooth playback if it's a video file
-      const localPreviewUrl = file.type.startsWith('video/')
-        ? URL.createObjectURL(file)
-        : data.url;
+      // Keep local preview for video player if available for silky smooth native playback
+      const finalMediaUrl = localPreviewUrl || data.url;
 
-      onFileUploaded(data.fileId, data.originalName, localPreviewUrl);
+      onFileUploaded(data.fileId, file.name, finalMediaUrl);
       setPendingLocalFile(null);
     } catch (err: any) {
       console.warn('Upload failed gracefully:', err.message);
       const actualError = err.message || 'تعذر الاتصال بالسيرفر السحابي.';
       setUploadError(actualError);
+      if (localPreviewUrl) {
+        onFileUploaded(`local-${Date.now()}`, file.name, localPreviewUrl);
+      }
     } finally {
       setIsUploading(false);
+      setUploadStatusMsg(null);
     }
   };
 
@@ -149,7 +185,10 @@ export const UploadAndConfig: React.FC<UploadAndConfigProps> = ({
           {isUploading ? (
             <div className="flex flex-col items-center gap-2 text-neutral-300 py-3">
               <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
-              <p className="text-xs font-semibold">جاري رفع الملف إلى السيرفر ومعالجة الصوت...</p>
+              <p className="text-xs font-semibold text-amber-300">
+                {uploadStatusMsg || 'جاري رفع الملف إلى السيرفر ومعالجة الصوت...'}
+              </p>
+              <span className="text-[10px] text-neutral-400">يتم ضغط واستخراج الصوت لسرعة النقل دون استهلاك البيانات</span>
             </div>
           ) : currentFileId ? (
             <div className="flex items-center justify-center gap-3 py-2 text-emerald-400">
@@ -166,9 +205,29 @@ export const UploadAndConfig: React.FC<UploadAndConfigProps> = ({
                 اسحب وأفلت ملف الفيلم أو الحلقة هنا، أو <span className="text-amber-400 underline">اختر ملفاً</span>
               </p>
               <p className="text-[10px] text-neutral-400">
-                يدعم MP4، MKV ومسارات الصوت MP3 (يُنصح بمسار الصوت MP3 أو فيديو أقل من 30 ميغابايت لمعالجة فائقة السرعة)
+                يدعم MP4، MKV ومسارات الصوت MP3 (استخراج فوري للصوت محلياً لتفادي أي حدود للحجم)
               </p>
             </div>
+          )}
+        </div>
+
+        {/* Streamlit Callout Banner */}
+        <div className="mt-2.5 p-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="text-neutral-300 leading-snug">
+              <strong>تريد ترجمة أفلام ومسلسلات ضخمة (حتى 1GB)؟</strong> شغّل تطبيق <span className="text-amber-400 font-semibold">Streamlit</span> الجديد مع خانة مخصصة لمفتاح الذكاء الاصطناعي.
+            </span>
+          </div>
+          {onOpenStreamlitModal && (
+            <button
+              type="button"
+              onClick={onOpenStreamlitModal}
+              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-[11px] transition-all flex items-center gap-1.5 shrink-0 self-end sm:self-auto shadow-sm"
+            >
+              <span>فتح تطبيق Streamlit</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </button>
           )}
         </div>
 
@@ -179,6 +238,16 @@ export const UploadAndConfig: React.FC<UploadAndConfigProps> = ({
               <span className="leading-relaxed">{uploadError}</span>
             </div>
             <div className="flex items-center gap-2 shrink-0 self-end sm:self-center flex-wrap">
+              {onOpenStreamlitModal && (
+                <button
+                  type="button"
+                  onClick={onOpenStreamlitModal}
+                  className="px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-semibold transition-colors flex items-center gap-1"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>تطبيق Streamlit (1GB)</span>
+                </button>
+              )}
               <a
                 href="https://ais-dev-bw6j7pmuiyh2semyrvfxzz-90618466889.europe-west2.run.app"
                 target="_blank"

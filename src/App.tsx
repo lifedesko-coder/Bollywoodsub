@@ -6,6 +6,7 @@ import { UploadAndConfig } from './components/UploadAndConfig';
 import { ExportToolbar } from './components/ExportToolbar';
 import { TimingRuleModal } from './components/TimingRuleModal';
 import { PythonProjectModal } from './components/PythonProjectModal';
+import { StreamlitModal } from './components/StreamlitModal';
 import { BurnModal } from './components/BurnModal';
 import { ApkBuildModal } from './components/ApkBuildModal';
 import { SubtitleCue, TranslationSettings, SubtitleStyle } from './types';
@@ -28,6 +29,7 @@ export default function App() {
   // Modals state
   const [isTimingModalOpen, setIsTimingModalOpen] = useState<boolean>(false);
   const [isPythonModalOpen, setIsPythonModalOpen] = useState<boolean>(false);
+  const [isStreamlitModalOpen, setIsStreamlitModalOpen] = useState<boolean>(false);
   const [isBurnModalOpen, setIsBurnModalOpen] = useState<boolean>(false);
   const [isApkModalOpen, setIsApkModalOpen] = useState<boolean>(false);
 
@@ -177,6 +179,7 @@ export default function App() {
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans selection:bg-amber-500/30 selection:text-amber-200">
       {/* Top Header */}
       <Header
+        onOpenStreamlitModal={() => setIsStreamlitModalOpen(true)}
         onOpenPythonModal={() => setIsPythonModalOpen(true)}
         onOpenTimingInfo={() => setIsTimingModalOpen(true)}
         onOpenApkModal={() => setIsApkModalOpen(true)}
@@ -310,6 +313,7 @@ export default function App() {
               settings={settings}
               onUpdateSettings={handleUpdateSettings}
               onStartTranslation={handleStartTranslation}
+              onOpenStreamlitModal={() => setIsStreamlitModalOpen(true)}
               isProcessing={isProcessing}
               processingStep={processingStep}
             />
@@ -438,6 +442,11 @@ export default function App() {
       <PythonProjectModal
         isOpen={isPythonModalOpen}
         onClose={() => setIsPythonModalOpen(false)}
+      />
+
+      <StreamlitModal
+        isOpen={isStreamlitModalOpen}
+        onClose={() => setIsStreamlitModalOpen(false)}
       />
 
       <BurnModal

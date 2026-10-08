@@ -107,11 +107,14 @@ export async function safeFetchJson<T = any>(
       throw new Error('الرابط أو الملف المطلوب غير موجود على الخادم (404 Not Found).');
     }
 
-    throw new Error(`فشل الطلب من الخادم (رمز الاستجابة: ${response.status}).`);
+    throw new Error(`فشل الطلب من الخادم (رمز الاستجابة: ${response.status} ${response.statusText || ''}).`);
   }
 
   if (data === null) {
-    throw new Error('استجابة غير صالحة من الخادم (لم يتم استلام بيانات بتنسيق JSON).');
+    throw new Error(
+      `تعذر قراءة استجابة السيرفر بتنسيق JSON (رمز الحالة: ${response.status}، نوع المحتوى: ${contentType || 'غير محدد'}). ` +
+      'إذا كان ملف الفيديو كبيراً، يرجى تجربة خيار استخراج الصوت التلقائي أو رفع ملف MP3 خفيف أو تشغيل نسخة Streamlit للأفلام الطويلة.'
+    );
   }
 
   return data as T;
