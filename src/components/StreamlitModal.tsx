@@ -25,6 +25,21 @@ export const StreamlitModal: React.FC<StreamlitModalProps> = ({ isOpen, onClose 
   const [activeTab, setActiveTab] = useState<'quickstart' | 'cloud' | 'colab' | 'code'>('quickstart');
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedCmd, setCopiedCmd] = useState(false);
+  const [fullCode, setFullCode] = useState<string>('');
+  const [isLoadingCode, setIsLoadingCode] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    if (isOpen && activeTab === 'code' && !fullCode) {
+      setIsLoadingCode(true);
+      fetch('/api/streamlit-code')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.code) setFullCode(data.code);
+        })
+        .catch((err) => console.error('Failed to fetch code:', err))
+        .finally(() => setIsLoadingCode(false));
+    }
+  }, [isOpen, activeTab, fullCode]);
 
   if (!isOpen) return null;
 
@@ -248,13 +263,21 @@ streamlit run streamlit_app.py`;
 
           {activeTab === 'code' && (
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-neutral-400 font-mono">streamlit_app.py</span>
+              <div className="flex flex-wrap justify-between items-center gap-2">
+                <span className="text-xs text-neutral-400 font-mono">streamlit_app.py (النسخة المتوافقة مع أحدث نماذج Google)</span>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => copyText(fullCode, true)}
+                    disabled={!fullCode || isLoadingCode}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition-colors shadow"
+                  >
+                    {copiedCode ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedCode ? 'تم النسخ بنجاح!' : 'نسخ الكود بالكامل'}</span>
+                  </button>
                   <a
                     href="/api/download-streamlit-file"
                     download="streamlit_app.py"
-                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition-colors"
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs transition-colors border border-neutral-700"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>تحميل الملف</span>
@@ -262,17 +285,24 @@ streamlit run streamlit_app.py`;
                   <a
                     href="/api/download-python-project"
                     download="BollywoodSub_Python_Project.zip"
-                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs transition-colors"
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs transition-colors border border-neutral-700"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>تحميل المشروع كاملاً (.ZIP)</span>
+                    <span>تحميل ZIP</span>
                   </a>
                 </div>
               </div>
               <p className="text-neutral-400 text-xs">
-                تم تضمين كود Streamlit المكتمل في مسار المشروع الرئيسي <code className="text-amber-400 font-mono" dir="ltr">streamlit_app.py</code>،
-                وهو مهيأ لدعم اللغة العربية والمظهر السينمائي مع خانة المفتاح واختيار النماذج.
+                انسخ هذا الكود واستبدله في ملف <code className="text-amber-400 font-mono" dir="ltr">streamlit_app.py</code> على GitHub لحل أي ضغط خوادم أو أخطاء توقف تلقائياً:
               </p>
+              <div className="relative">
+                <pre
+                  className="p-3 rounded-xl bg-neutral-950 border border-neutral-800 text-neutral-300 font-mono text-xs leading-relaxed max-h-64 overflow-y-auto whitespace-pre select-all"
+                  dir="ltr"
+                >
+                  {isLoadingCode ? 'جاري تحميل الكود الأحدث...' : fullCode || '# افتح التبويب لتحميل الكود المحدث'}
+                </pre>
+              </div>
             </div>
           )}
         </div>

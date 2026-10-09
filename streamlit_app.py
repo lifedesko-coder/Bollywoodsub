@@ -254,35 +254,63 @@ def translate_bollywood_media(
     with st.spinner("⏳ جاري رفع ملف الوسائط إلى Google Gemini API..."):
         uploaded_gemini_file = client.files.upload(file=media_path)
 
-    # قائمة النماذج المرشحة مع تبديل تلقائي (Fallback) لتفادي أخطاء 404 NOT_FOUND
-    models_to_try = [model_name]
-    fallback_pool = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-2.0-flash"]
-    for m in fallback_pool:
-        if m not in models_to_try:
-            models_to_try.append(m)
+    # قائمة النماذج المرشحة مع تبديل تلقائي فوري (Auto-Cascade Pipeline)
+    # إذا كان خادم Google يواجه ضغطاً (503) أو أي مشكلة، يتم التحويل للنموذج التالي فوراً
+    available_pool = [
+        "gemini-3.5-flash-lite",   # فائق السرعة وخفيف جداً، نادر التعرض للضغط
+        "gemini-3.8-flash",        # النموذج الأساسي الأكثر دقة
+        "gemini-flash-latest",     # الاسم المستعار المباشر لأحدث إصدار Flash
+        "gemini-3.1-flash-lite",   # نموذج بديل إضافي
+    ]
+
+    # ترتيب أولويات النماذج بناءً على اختيار المستخدم
+    selected_clean = model_name
+    for opt in ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"]:
+        if opt in str(model_name):
+            selected_clean = opt
+            break
+
+    if "auto" in str(model_name).lower() or "ذكي" in str(model_name):
+        models_to_try = available_pool
+    else:
+        models_to_try = [selected_clean] + [m for m in available_pool if m != selected_clean]
 
     response = None
     last_err = None
+    successful_model = None
 
-    for candidate_model in models_to_try:
+    import time
+    status_placeholder = st.empty()
+
+    for idx, candidate_model in enumerate(models_to_try):
         try:
-            with st.spinner(f"⚡ جاري تحليل الكلام وترجمته سينمائياً عبر النموذج {candidate_model}..."):
-                response = client.models.generate_content(
-                    model=candidate_model,
-                    contents=[uploaded_gemini_file, prompt],
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction,
-                        response_mime_type="application/json",
-                    )
+            status_placeholder.info(f"⚡ جاري تحليل وترجمة الصوت سينمائياً عبر النموذج: **{candidate_model}**...")
+            response = client.models.generate_content(
+                model=candidate_model,
+                contents=[uploaded_gemini_file, prompt],
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    response_mime_type="application/json",
                 )
-                break
+            )
+            successful_model = candidate_model
+            status_placeholder.success(f"🎉 تم الاتصال بنجاح وتوليد الترجمة عبر النموذج: **{candidate_model}**")
+            break
         except Exception as e:
             last_err = e
             err_str = str(e)
-            if "404" in err_str or "NOT_FOUND" in err_str or "no longer available" in err_str:
-                st.warning(f"⚠️ النموذج {candidate_model} غير متاح في حسابك، جاري الانتقال تلقائياً إلى نموذج بديل...")
+            
+            # إذا بقي نموذج آخر في القائمة، يتم التبديل التلقائي بدون إحباط المستخدم
+            if idx < len(models_to_try) - 1:
+                next_model = models_to_try[idx + 1]
+                status_placeholder.warning(
+                    f"⚠️ النموذج `{candidate_model}` واجه ضغطاً أو توقفاً مؤقتاً في خوادم Google. "
+                    f"جاري التحويل التلقائي فوراً إلى النموذج البديل `{next_model}`..."
+                )
+                time.sleep(1.0)
                 continue
             else:
+                status_placeholder.error(f"❌ تعذرت الاستجابة بعد تجربة جميع النماذج ({', '.join(models_to_try)}).")
                 raise e
 
     if response is None:
@@ -435,14 +463,16 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("⚙️ إعدادات الترجمة والنموذج")
 
 model_choice = st.sidebar.selectbox(
-    "نموذج Gemini المفضل:",
+    "نموذج Gemini ونظام التشغيل:",
     options=[
-        "gemini-3.8-flash",
-        "gemini-3.5-flash-lite",
-        "gemini-2.0-flash",
+        "⚡ التبديل التلقائي الذكي (Auto-Cascade - مضمون ضد الضغط)",
+        "gemini-3.5-flash-lite (فائق السرعة والأقل ضغطاً)",
+        "gemini-3.8-flash (الأعلى دقة وسينمائية)",
+        "gemini-flash-latest (الأحدث رسمياً)",
+        "gemini-3.1-flash-lite (خفيف واحتياطي)",
     ],
     index=0,
-    help="نماذج Flash توفر أعلى سرعة وأدق تفريغ للصوت وترجمة سينمائية فورية."
+    help="التبديل التلقائي الذكي يقوم بالانتقال فوراً وبدون انقطاع بين النماذج إذا واجه أي خادم ضغطاً مؤقتاً."
 )
 
 dialect_choice = st.sidebar.selectbox(

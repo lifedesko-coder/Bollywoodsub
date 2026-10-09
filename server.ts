@@ -754,6 +754,20 @@ async function startServer() {
     }
   });
 
+  // 8. Get raw code for Streamlit app
+  app.get('/api/streamlit-code', (req, res) => {
+    try {
+      const filePath = path.join(process.cwd(), 'streamlit_app.py');
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'ملف streamlit_app.py غير موجود.' });
+      }
+      const code = fs.readFileSync(filePath, 'utf-8');
+      res.json({ code });
+    } catch (err: any) {
+      res.status(500).json({ error: 'فشل قراءة كود streamlit_app.py' });
+    }
+  });
+
   // Explicit JSON error handler for all /api endpoints to prevent HTML error leak
   app.use('/api', (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error('Unhandled API Error caught:', err);
