@@ -25,24 +25,44 @@ st.set_page_config(
     page_title="BollywoodSub AI - ترجمة الأفلام الهندية",
     page_icon="🎬",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="auto"
 )
 
-# تخصيص واجهة المستخدم لدعم العربية RTL والمظهر السينمائي
+# تخصيص واجهة المستخدم لدعم العربية RTL والمظهر السينمائي مع حماية كاملة لتخطيط الهواتف المحمولة
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
     
-    html, body, [class*="css"] {
+    html, body, .stApp {
         font-family: 'Cairo', sans-serif !important;
+    }
+    
+    /* ضبط اتجاه المحتوى الرئيسي */
+    .main .block-container {
         direction: rtl;
         text-align: right;
     }
     
-    /* ضبط اتجاه العناصر */
+    /* القائمة الجانبية: ضبط الاتجاه ومنع تكسر النصوص رأسياً في الشاشات الصغيرة */
+    [data-testid="stSidebar"] {
+        direction: rtl;
+        text-align: right;
+    }
+    
+    [data-testid="stSidebar"] * {
+        word-break: normal !important;
+        overflow-wrap: normal !important;
+    }
+    
+    /* منع ظهور عناصر القائمة الجانبية عند طيها على الموبايل */
+    section[data-testid="stSidebar"][aria-expanded="false"] {
+        display: none !important;
+    }
+    
+    /* ضبط اتجاه حقول الإدخال */
     .stTextInput > div > div > input {
-        direction: ltr;
-        text-align: left;
+        direction: ltr !important;
+        text-align: left !important;
     }
     
     .stCodeBlock, code, pre {
@@ -60,6 +80,7 @@ st.markdown("""
         border-radius: 9999px;
         font-size: 0.8rem;
         margin-bottom: 8px;
+        white-space: nowrap;
     }
     
     /* بطاقة الترجمة */
@@ -462,24 +483,48 @@ uploaded_file = st.file_uploader(
     help="في Streamlit يمكنك رفع ملفات بأي حجم تريده دون قيود المتصفحات."
 )
 
+st.caption("💡 **نصيحة لمستخدمي الهواتف:** لتفادي انقطاع الاتصال (CONNECTING)، يفضل اختيار الملف سريعاً أو استخدام متصفح Chrome بدون تجميد التبويبات.")
+
+# تهيئة الجلسة لحفظ نتائج الترجمة والملف
+if "cues" not in st.session_state:
+    st.session_state.cues = []
+if "processed_filename" not in st.session_state:
+    st.session_state.processed_filename = ""
+if "cached_file_bytes" not in st.session_state:
+    st.session_state.cached_file_bytes = None
+if "cached_file_name" not in st.session_state:
+    st.session_state.cached_file_name = ""
+
+# عند اختيار ملف، يتم حفظه وعرض معاينة مرئية فورية
+if uploaded_file is not None:
+    st.session_state.cached_file_bytes = uploaded_file.getvalue()
+    st.session_state.cached_file_name = uploaded_file.name
+
 # عينة بوليوود تجريبية إن لم يرفع ملفاً
 use_demo = False
-if not uploaded_file:
+has_media = (uploaded_file is not None) or (st.session_state.cached_file_bytes is not None)
+
+if not has_media:
     col_demo1, col_demo2 = st.columns([1, 3])
     with col_demo1:
         if st.button("✨ تجربة عينة بوليوود تجريبية فورية"):
             use_demo = True
 
-# تهيئة الجلسة لحفظ نتائج الترجمة
-if "cues" not in st.session_state:
-    st.session_state.cues = []
-if "processed_filename" not in st.session_state:
-    st.session_state.processed_filename = ""
+# معاينة الفيديو أو الصوت وزر بدء الترجمة
+if has_media or use_demo:
+    target_name = (uploaded_file.name if uploaded_file else st.session_state.cached_file_name) if has_media else "Gully_Boy_Bollywood_Demo.mp4"
+    file_size_mb = round(len(st.session_state.cached_file_bytes) / (1024 * 1024), 2) if st.session_state.cached_file_bytes else 0
+    size_label = f" ({file_size_mb} MB)" if file_size_mb > 0 else ""
+    
+    st.success(f"🎬 تم تحميل الملف بنجاح: **{target_name}**{size_label}")
 
-# زر بدء الترجمة
-if uploaded_file or use_demo:
-    target_name = uploaded_file.name if uploaded_file else "Gully_Boy_Bollywood_Demo.mp4"
-    st.info(f"الملف المحدد: **{target_name}**")
+    # معاينة الفيديو أو الصوت مباشرة في المتصفح
+    if has_media and st.session_state.cached_file_bytes:
+        ext = Path(target_name).suffix.lower()
+        if ext in [".mp4", ".mov", ".mkv", ".webm", ".avi"]:
+            st.video(st.session_state.cached_file_bytes)
+        elif ext in [".mp3", ".wav", ".m4a", ".aac", ".ogg"]:
+            st.audio(st.session_state.cached_file_bytes)
 
     start_btn = st.button("🚀 بدء الترجمة السينمائية والمزامنة", type="primary", use_container_width=True)
 
@@ -523,10 +568,13 @@ if uploaded_file or use_demo:
                     st.session_state.processed_filename = target_name
                     st.success("✅ تم تحميل العينة التجريبية بنجاح!")
                 else:
-                    # حفظ الملف المرفوع في مجلد مؤقت
-                    suffix = Path(uploaded_file.name).suffix or ".mp4"
+                    # حفظ الملف المرفوع في مجلد مؤقت بأمان
+                    effective_name = uploaded_file.name if uploaded_file else st.session_state.cached_file_name
+                    suffix = Path(effective_name).suffix or ".mp4"
+                    file_bytes = st.session_state.cached_file_bytes if st.session_state.cached_file_bytes else uploaded_file.getvalue()
+                    
                     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
-                        tmp_file.write(uploaded_file.read())
+                        tmp_file.write(file_bytes)
                         tmp_media_path = tmp_file.name
 
                     media_to_translate = tmp_media_path
@@ -550,7 +598,7 @@ if uploaded_file or use_demo:
                     )
 
                     st.session_state.cues = cues
-                    st.session_state.processed_filename = uploaded_file.name
+                    st.session_state.processed_filename = effective_name
                     st.success(f"🎉 تمت الترجمة بنجاح! تم استخراج {len(cues)} سطر ترجمة سينمائية متزامنة.")
 
             except Exception as ex:
