@@ -195,7 +195,7 @@ def extract_audio_zero_sync(video_path: str, output_audio_path: str) -> bool:
 def translate_bollywood_media(
     media_path: str,
     api_key: str,
-    model_name: str = "gemini-2.5-flash",
+    model_name: str = "gemini-3.8-flash",
     dialect: str = "egyptian",
     preserve_hinglish: bool = True,
     translate_songs: bool = True,
@@ -203,6 +203,7 @@ def translate_bollywood_media(
 ) -> list:
     """
     الاتصال بمكتبة google-genai الحديثة وترجمة المحتوى بدقة سينمائية
+    مع دعم التبديل التلقائي الذكي للنماذج (Fallback) في حال كان النموذج متوقفاً
     """
     try:
         from google import genai
@@ -253,16 +254,39 @@ def translate_bollywood_media(
     with st.spinner("⏳ جاري رفع ملف الوسائط إلى Google Gemini API..."):
         uploaded_gemini_file = client.files.upload(file=media_path)
 
-    # توليد الاستجابة مع ضبط JSON Output
-    with st.spinner(f"⚡ جاري تحليل الكلام وترجمته سينمائياً عبر النموذج {model_name}..."):
-        response = client.models.generate_content(
-            model=model_name,
-            contents=[uploaded_gemini_file, prompt],
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                response_mime_type="application/json",
-            )
-        )
+    # قائمة النماذج المرشحة مع تبديل تلقائي (Fallback) لتفادي أخطاء 404 NOT_FOUND
+    models_to_try = [model_name]
+    fallback_pool = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-2.0-flash"]
+    for m in fallback_pool:
+        if m not in models_to_try:
+            models_to_try.append(m)
+
+    response = None
+    last_err = None
+
+    for candidate_model in models_to_try:
+        try:
+            with st.spinner(f"⚡ جاري تحليل الكلام وترجمته سينمائياً عبر النموذج {candidate_model}..."):
+                response = client.models.generate_content(
+                    model=candidate_model,
+                    contents=[uploaded_gemini_file, prompt],
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        response_mime_type="application/json",
+                    )
+                )
+                break
+        except Exception as e:
+            last_err = e
+            err_str = str(e)
+            if "404" in err_str or "NOT_FOUND" in err_str or "no longer available" in err_str:
+                st.warning(f"⚠️ النموذج {candidate_model} غير متاح في حسابك، جاري الانتقال تلقائياً إلى نموذج بديل...")
+                continue
+            else:
+                raise e
+
+    if response is None:
+        raise last_err or RuntimeError("فشل توليد الاستجابة من جميع نماذج Gemini المتاحة.")
 
     raw_text = response.text or ""
 
@@ -413,10 +437,9 @@ st.sidebar.subheader("⚙️ إعدادات الترجمة والنموذج")
 model_choice = st.sidebar.selectbox(
     "نموذج Gemini المفضل:",
     options=[
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash",
+        "gemini-3.8-flash",
         "gemini-3.5-flash-lite",
+        "gemini-2.0-flash",
     ],
     index=0,
     help="نماذج Flash توفر أعلى سرعة وأدق تفريغ للصوت وترجمة سينمائية فورية."
