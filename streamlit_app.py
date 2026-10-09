@@ -196,8 +196,8 @@ def translate_bollywood_media(
     media_path: str,
     api_key: str,
     model_name: str = "gemini-3.8-flash",
-    dialect: str = "egyptian",
-    preserve_hinglish: bool = True,
+    dialect: str = "msa",
+    preserve_hinglish: bool = False,
     translate_songs: bool = True,
     min_duration: float = 1.0
 ) -> list:
@@ -217,20 +217,21 @@ def translate_bollywood_media(
     client = genai.Client(api_key=api_key)
 
     dialect_descriptions = {
+        "msa": "اللغة العربية الفصحى المعاصرة السليمة (Modern Standard Arabic) بدقة سينمائية راقية. يمنع منعاً باتاً استخدام أي لهجة عامية (مثل المصرية أو غيرها). ترجم الأفعال والأسئلة بفصحى نقية (مثال: 'ماذا حدث؟'، 'يوجد شخص يتبعني' بدلاً من 'إيه اللي حصل' أو 'ماشي ورايا').",
         "egyptian": "اللهجة المصرية السينمائية السلسة الشائعة في دبلجة الأفلام والمسلسلات",
-        "msa": "اللغة العربية الفصحى الحديثة المعاصرة (Modern Standard Arabic)",
         "levantine": "اللهجة الشامية (السورية واللبنانية السينمائية)",
         "gulf": "اللهجة الخليجية المعاصرة",
         "iraqi": "اللهجة العراقية الفنية المعبرة"
     }
-    target_dialect_desc = dialect_descriptions.get(dialect, dialect_descriptions["egyptian"])
+    target_dialect_desc = dialect_descriptions.get(dialect, dialect_descriptions["msa"])
 
     # التعليمات التوجيهية للذكاء الاصطناعي
     system_instruction = f"""
-أنت المترجم الأول والمتخصص سينمائياً في ترجمة الأفلام والمسلسلات الهندية (Bollywood & Indian OTT) إلى اللغة العربية:
-- الهدف: استمع بتركيز فائق إلى المحتوى وحوله إلى ترجمة عربية دقيقة وممتعة بـ: {target_dialect_desc}.
+أنت المترجم السينمائي الأول المتخصص في ترجمة الأفلام والمسلسلات الهندية إلى اللغة العربية الفصحى:
+- الهدف الأساسي: استمع بتركيز فائق وحوّل كل الحوارات حصراً إلى: {target_dialect_desc}.
+- في حال اختيار الفصحى: التزم تماماً بالقواعد النحوية والتراكيب الفصيحة الأنيقة المتداولة في ترجمة الأفلام العالمية (مثل منصات Netflix و Shahid). لا تستخدم أي تعبيرات عامية إطلاقاً.
 - ابدأ من بداية المقطع (00:00.00) دون تفويت أي جملة أو كلمة.
-- الـ Hinglish وشارع مومباي: حافظ على نبرة الحوار الممتعة وسلاسة التعبير ({'مفعل: انقل معنى المصطلحات الهندية/الإنجليزية بأسلوب عامي سينمائي جذاب' if preserve_hinglish else 'ترجم المعنى الرسمي'}).
+- الـ Hinglish وشارع مومباي: صغ المعنى بدقة بأسلوب فصيح مفهوم ({'مفعل: احتفظ بنبرة الحوار' if preserve_hinglish else 'ترجم المعنى إلى الفصحى المباشرة'}).
 - أغاني الخلفية والراب الهندي: ({'مفعل: ضع علامة النوتة الموسيقية ♪ في بداية ونهاية كل بيت شعري أو مقطع غنائي أو راب هندي' if translate_songs else 'ترجم الحوارات فقط'}).
 
 قاعدة التوقيت الحتمية الصارمة (منع خطأ الـ 100 ثانية):
@@ -242,7 +243,7 @@ def translate_bollywood_media(
     "timecodeStart": "00:00.50",
     "timecodeEnd": "00:03.20",
     "originalHindi": "الحوار بالهندية أو Hinglish الأصلي",
-    "arabicTranslation": "الترجمة العربية السينمائية (محاطة بـ ♪ إذا كانت أغنية أو راب)",
+    "arabicTranslation": "الترجمة العربية الفصحى (محاطة بـ ♪ إذا كانت أغنية أو راب)",
     "type": "dialogue" // "dialogue" أو "hinglish" أو "song" أو "rap"
   }}
 ]
@@ -476,10 +477,10 @@ model_choice = st.sidebar.selectbox(
 )
 
 dialect_choice = st.sidebar.selectbox(
-    "اللهجة العربية المستهدفة:",
+    "لغة وترجمة الحوارات المستهدفة:",
     options=[
-        ("egyptian", "المصرية السينمائية (الأكثر سلاسة)"),
-        ("msa", "الفصحى المعاصرة (Modern Standard Arabic)"),
+        ("msa", "اللغة العربية الفصحى المعاصرة (الافتراضية المعتمدة)"),
+        ("egyptian", "اللهجة المصرية السينمائية"),
         ("levantine", "الشامية (سورية ولبنانية)"),
         ("gulf", "الخليجية المعاصرة"),
         ("iraqi", "العراقية الفنية"),
@@ -489,9 +490,9 @@ dialect_choice = st.sidebar.selectbox(
 )[0]
 
 preserve_hinglish = st.sidebar.checkbox(
-    "الحفاظ على نكهة لغة الشارع و Hinglish",
-    value=True,
-    help="تكييف مصطلحات الشارع والمزيج الهندي-الإنجليزي بأسلوب سينمائي ممتع بدلاً من الترجمة الحرفية الجافة."
+    "نقل مصطلحات الشارع و Hinglish إلى الفصحى بسلاسة",
+    value=False,
+    help="عند التعطيل يتم الالتزام التام بالفصحى الفصيحة وتفادي أي كلمات دارجة."
 )
 
 translate_songs = st.sidebar.checkbox(
@@ -579,6 +580,22 @@ if has_media or use_demo:
         elif ext in [".mp3", ".wav", ".m4a", ".aac", ".ogg"]:
             st.audio(st.session_state.cached_file_bytes)
 
+    # اختيار لغة الترجمة المستهدفة مباشرة من الصفحة الرئيسية
+    active_dialect = st.radio(
+        "🌐 لغة الترجمة المطلوبة للفيلم:",
+        options=["msa", "iraqi", "egyptian", "gulf", "levantine"],
+        format_func=lambda x: {
+            "msa": "✨ اللغة العربية الفصحى (Modern Standard Arabic)",
+            "iraqi": "🇮🇶 اللهجة العراقية الفنية",
+            "egyptian": "🇪🇬 اللهجة المصرية",
+            "gulf": "🇸🇦 اللهجة الخليجية",
+            "levantine": "🇸🇾 اللهجة الشامية"
+        }.get(x, x),
+        index=0,
+        horizontal=True,
+        help="الافتراضي هو اللغة العربية الفصحى السليمة المعتمدة في كبرى شبكات البث مثل Netflix و Shahid."
+    )
+
     start_btn = st.button("🚀 بدء الترجمة السينمائية والمزامنة", type="primary", use_container_width=True)
 
     if start_btn:
@@ -640,11 +657,12 @@ if has_media or use_demo:
                                 media_to_translate = audio_tmp
 
                     # تنفيذ الترجمة
+                    selected_dialect = active_dialect if 'active_dialect' in locals() else dialect_choice
                     cues = translate_bollywood_media(
                         media_path=media_to_translate,
                         api_key=api_key_input,
                         model_name=model_choice,
-                        dialect=dialect_choice,
+                        dialect=selected_dialect,
                         preserve_hinglish=preserve_hinglish,
                         translate_songs=translate_songs,
                         min_duration=min_duration
